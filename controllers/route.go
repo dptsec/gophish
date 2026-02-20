@@ -12,7 +12,7 @@ import (
 
 	"github.com/NYTimes/gziphandler"
 	"github.com/gophish/gophish/auth"
-	"github.com/gophish/gophish/config"
+	gophishConfig "github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
 	log "github.com/gophish/gophish/logger"
@@ -37,7 +37,7 @@ type AdminServerOption func(*AdminServer)
 type AdminServer struct {
 	server  *http.Server
 	worker  worker.Worker
-	config  config.AdminServer
+	config  gophishConfig.AdminServer
 	limiter *ratelimit.PostLimiter
 }
 
@@ -71,7 +71,7 @@ func WithWorker(w worker.Worker) AdminServerOption {
 
 // NewAdminServer returns a new instance of the AdminServer with the
 // provided config and options applied.
-func NewAdminServer(config config.AdminServer, options ...AdminServerOption) *AdminServer {
+func NewAdminServer(config gophishConfig.AdminServer, options ...AdminServerOption) *AdminServer {
 	defaultWorker, _ := worker.New()
 	defaultServer := &http.Server{
 		ReadTimeout: 10 * time.Second,
@@ -191,7 +191,7 @@ func newTemplateParams(r *http.Request) templateParams {
 		Token:        csrf.Token(r),
 		User:         user,
 		ModifySystem: modifySystem,
-		Version:      config.Version,
+		Version:      gophishConfig.Version,
 		Flashes:      session.Flashes(),
 	}
 }

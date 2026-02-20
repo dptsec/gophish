@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
-	"github.com/gophish/gophish/config"
+	gophishConfig "github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
+	"github.com/gophish/gophish/ipfilter"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/util"
@@ -29,6 +30,24 @@ var ErrInvalidRequest = errors.New("Invalid request")
 // ErrCampaignComplete is thrown when an event is received for a campaign that
 // has already been marked as complete.
 var ErrCampaignComplete = errors.New("Event received on completed campaign")
+
+// BlacklistRedirectError indicates that the request should be redirected due to blacklist
+type BlacklistRedirectError struct {
+	URL string
+}
+
+func (e *BlacklistRedirectError) Error() string {
+	return "IP blacklisted: redirect"
+}
+
+// BlacklistFakePageError indicates that a fake page should be served due to blacklist
+type BlacklistFakePageError struct {
+	PagePath string
+}
+
+func (e *BlacklistFakePageError) Error() string {
+	return "IP blacklisted: serve fake page"
+}
 
 // TransparencyResponse is the JSON response provided when a third-party
 // makes a request to the transparency handler.
@@ -50,21 +69,32 @@ type PhishingServerOption func(*PhishingServer)
 // handlers, such as email open tracking, click tracking, and more.
 type PhishingServer struct {
 	server         *http.Server
-	config         config.PhishServer
+	config         gophishConfig.PhishServer
 	contactAddress string
+	ipFilter       *ipfilter.IPFilter
 }
 
 // NewPhishingServer returns a new instance of the phishing server with
 // provided options applied.
-func NewPhishingServer(config config.PhishServer, options ...PhishingServerOption) *PhishingServer {
+func NewPhishingServer(config gophishConfig.PhishServer, options ...PhishingServerOption) *PhishingServer {
 	defaultServer := &http.Server{
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		Addr:         config.ListenURL,
 	}
+
+	// Initialize IP filter
+	ipFilter, err := ipfilter.NewIPFilter(config.IPBlacklist)
+	if err != nil {
+		log.Errorf("Error initializing IP blacklist: %v", err)
+		log.Warn("Continuing without IP blacklist")
+		ipFilter, _ = ipfilter.NewIPFilter([]gophishConfig.BlacklistEntry{}) // Empty filter
+	}
+
 	ps := &PhishingServer{
-		server: defaultServer,
-		config: config,
+		server:   defaultServer,
+		config:   config,
+		ipFilter: ipFilter,
 	}
 	for _, opt := range options {
 		opt(ps)
@@ -132,8 +162,18 @@ func (ps *PhishingServer) registerRoutes() {
 
 // TrackHandler tracks emails as they are opened, updating the status for the given Result
 func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
-	r, err := setupContext(r)
+	r, err := ps.setupContext(r)
 	if err != nil {
+		// Check for redirect error
+		if redirectErr, ok := err.(*BlacklistRedirectError); ok {
+			http.Redirect(w, r, redirectErr.URL, http.StatusFound)
+			return
+		}
+		// Check for fake page error
+		if fakeErr, ok := err.(*BlacklistFakePageError); ok {
+			http.ServeFile(w, r, fakeErr.PagePath)
+			return
+		}
 		// Log the error if it wasn't something we can safely ignore
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
@@ -165,9 +205,19 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 // ReportHandler tracks emails as they are reported, updating the status for the given Result
 func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) {
-	r, err := setupContext(r)
+	r, err := ps.setupContext(r)
 	w.Header().Set("Access-Control-Allow-Origin", "*") // To allow Chrome extensions (or other pages) to report a campaign without violating CORS
 	if err != nil {
+		// Check for redirect error
+		if redirectErr, ok := err.(*BlacklistRedirectError); ok {
+			http.Redirect(w, r, redirectErr.URL, http.StatusFound)
+			return
+		}
+		// Check for fake page error
+		if fakeErr, ok := err.(*BlacklistFakePageError); ok {
+			http.ServeFile(w, r, fakeErr.PagePath)
+			return
+		}
 		// Log the error if it wasn't something we can safely ignore
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
@@ -200,8 +250,18 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 // PhishHandler handles incoming client connections and registers the associated actions performed
 // (such as clicked link, etc.)
 func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
-	r, err := setupContext(r)
+	r, err := ps.setupContext(r)
 	if err != nil {
+		// Check for redirect error
+		if redirectErr, ok := err.(*BlacklistRedirectError); ok {
+			http.Redirect(w, r, redirectErr.URL, http.StatusFound)
+			return
+		}
+		// Check for fake page error
+		if fakeErr, ok := err.(*BlacklistFakePageError); ok {
+			http.ServeFile(w, r, fakeErr.PagePath)
+			return
+		}
 		// Log the error if it wasn't something we can safely ignore
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
@@ -209,7 +269,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("X-Server", config.ServerName) // Useful for checking if this is a GoPhish server (e.g. for campaign reporting plugins)
+	w.Header().Set("X-Server", gophishConfig.ServerName) // Useful for checking if this is a GoPhish server (e.g. for campaign reporting plugins)
 	var ptx models.PhishingTemplateContext
 	// Check for a preview
 	if preview, ok := ctx.Get(r, "result").(models.EmailRequest); ok {
@@ -303,7 +363,7 @@ func (ps *PhishingServer) RobotsHandler(w http.ResponseWriter, r *http.Request) 
 func (ps *PhishingServer) TransparencyHandler(w http.ResponseWriter, r *http.Request) {
 	rs := ctx.Get(r, "result").(models.Result)
 	tr := &TransparencyResponse{
-		Server:         config.ServerName,
+		Server:         gophishConfig.ServerName,
 		SendDate:       rs.SendDate,
 		ContactAddress: ps.contactAddress,
 	}
@@ -312,7 +372,7 @@ func (ps *PhishingServer) TransparencyHandler(w http.ResponseWriter, r *http.Req
 
 // setupContext handles some of the administrative work around receiving a new
 // request, such as checking the result ID, the campaign, etc.
-func setupContext(r *http.Request) (*http.Request, error) {
+func (ps *PhishingServer) setupContext(r *http.Request) (*http.Request, error) {
 	err := r.ParseForm()
 	if err != nil {
 		log.Error(err)
@@ -362,6 +422,23 @@ func setupContext(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		ip = r.RemoteAddr
 	}
+
+	// Check IP blacklist
+	result := ps.ipFilter.Check(ip)
+	if result.Blacklisted {
+		switch result.Action {
+		case ipfilter.ActionIgnore:
+			log.Infof("Blacklisted IP %s (action: ignore) - allowing request for RID: %s", ip, rid)
+			// Continue normal processing
+		case ipfilter.ActionNotFound:
+			return r, ErrInvalidRequest // Triggers 404
+		case ipfilter.ActionRedirect:
+			return r, &BlacklistRedirectError{URL: result.RedirectURL}
+		case ipfilter.ActionFake:
+			return r, &BlacklistFakePageError{PagePath: result.FakePage}
+		}
+	}
+
 	// Handle post processing such as GeoIP
 	err = rs.UpdateGeo(ip)
 	if err != nil {

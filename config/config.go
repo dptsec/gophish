@@ -20,10 +20,19 @@ type AdminServer struct {
 
 // PhishServer represents the Phish server configuration details
 type PhishServer struct {
-	ListenURL string `json:"listen_url"`
-	UseTLS    bool   `json:"use_tls"`
-	CertPath  string `json:"cert_path"`
-	KeyPath   string `json:"key_path"`
+	ListenURL   string            `json:"listen_url"`
+	UseTLS      bool              `json:"use_tls"`
+	CertPath    string            `json:"cert_path"`
+	KeyPath     string            `json:"key_path"`
+	IPBlacklist []BlacklistEntry  `json:"ip_blacklist"`
+}
+
+// BlacklistEntry represents a single IP blacklist entry
+type BlacklistEntry struct {
+	IPRange     string `json:"ip_range"`
+	Action      string `json:"action"`
+	RedirectURL string `json:"redirect_url,omitempty"`
+	FakePage    string `json:"fake_page,omitempty"`
 }
 
 // Config represents the configuration information.
