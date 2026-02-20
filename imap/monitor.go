@@ -22,14 +22,31 @@ import (
 	"github.com/gophish/gophish/models"
 )
 
+// Cached compiled regex to avoid recompilation on every email check
+var (
+	goPhishRegexCache      *regexp.Regexp
+	goPhishRegexCachedParam string
+)
+
 // getGoPhishRegex returns a compiled regex pattern for finding GoPhish tracking URLs
 // Pattern matches ?<param>=AbC1234 where <param> is the configured recipient parameter
 // We include the optional quoted-printable 3D at the front, just in case decoding fails. e.g ?id=3DAbC1234
 // We also include alternative URL encoded representations of '=' and '?' to handle Microsoft ATP URLs e.g %3Fid%3DAbC1234
+// The compiled regex is cached to avoid expensive recompilation on every email check.
 func getGoPhishRegex() *regexp.Regexp {
 	param := models.RecipientParameter()
+
+	// Return cached regex if parameter hasn't changed
+	if goPhishRegexCache != nil && goPhishRegexCachedParam == param {
+		return goPhishRegexCache
+	}
+
+	// Compile and cache new regex
 	pattern := fmt.Sprintf("((\\?|%%3F)%s(=|%%3D)(3D)?([A-Za-z0-9]{7}))", regexp.QuoteMeta(param))
-	return regexp.MustCompile(pattern)
+	goPhishRegexCache = regexp.MustCompile(pattern)
+	goPhishRegexCachedParam = param
+
+	return goPhishRegexCache
 }
 
 // Monitor is a worker that monitors IMAP servers for reported campaign emails
