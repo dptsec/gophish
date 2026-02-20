@@ -9,9 +9,14 @@ import (
 	"github.com/gophish/gophish/mailer"
 )
 
-// PreviewPrefix is the standard prefix added to the rid parameter when sending
+// PreviewPrefix returns the configured prefix added to the rid parameter when sending
 // test emails.
-const PreviewPrefix = "preview-"
+func PreviewPrefix() string {
+	if conf != nil && conf.PhishConf.PreviewPrefix != "" {
+		return conf.PhishConf.PreviewPrefix
+	}
+	return "preview-" // Fallback default
+}
 
 // EmailRequest is the structure of a request
 // to send a test email to test an SMTP connection.
@@ -84,7 +89,7 @@ func PostEmailRequest(s *EmailRequest) error {
 	if err != nil {
 		return err
 	}
-	s.RId = fmt.Sprintf("%s%s", PreviewPrefix, rid)
+	s.RId = fmt.Sprintf("%s%s", PreviewPrefix(), rid)
 	return db.Save(&s).Error
 }
 

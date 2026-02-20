@@ -9,6 +9,7 @@ package imap
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -21,10 +22,15 @@ import (
 	"github.com/gophish/gophish/models"
 )
 
-// Pattern for GoPhish emails e.g ?rid=AbC1234
-// We include the optional quoted-printable 3D at the front, just in case decoding fails. e.g ?rid=3DAbC1234
-// We also include alternative URL encoded representations of '=' and '?' to handle Microsoft ATP URLs e.g %3Frid%3DAbC1234
-var goPhishRegex = regexp.MustCompile("((\\?|%3F)rid(=|%3D)(3D)?([A-Za-z0-9]{7}))")
+// getGoPhishRegex returns a compiled regex pattern for finding GoPhish tracking URLs
+// Pattern matches ?<param>=AbC1234 where <param> is the configured recipient parameter
+// We include the optional quoted-printable 3D at the front, just in case decoding fails. e.g ?id=3DAbC1234
+// We also include alternative URL encoded representations of '=' and '?' to handle Microsoft ATP URLs e.g %3Fid%3DAbC1234
+func getGoPhishRegex() *regexp.Regexp {
+	param := models.RecipientParameter()
+	pattern := fmt.Sprintf("((\\?|%%3F)%s(=|%%3D)(3D)?([A-Za-z0-9]{7}))", regexp.QuoteMeta(param))
+	return regexp.MustCompile(pattern)
+}
 
 // Monitor is a worker that monitors IMAP servers for reported campaign emails
 type Monitor struct {
@@ -205,7 +211,7 @@ func checkForNewEmails(im models.IMAP) {
 func checkRIDs(em *email.Email, rids map[string]bool) {
 	// Check Text and HTML
 	emailContent := string(em.Text) + string(em.HTML)
-	for _, r := range goPhishRegex.FindAllStringSubmatch(emailContent, -1) {
+	for _, r := range getGoPhishRegex().FindAllStringSubmatch(emailContent, -1) {
 		newrid := r[len(r)-1]
 		if !rids[newrid] {
 			rids[newrid] = true

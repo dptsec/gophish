@@ -57,9 +57,14 @@ type TransparencyResponse struct {
 	SendDate       time.Time `json:"send_date"`
 }
 
-// TransparencySuffix (when appended to a valid result ID), will cause Gophish
-// to return a transparency response.
-const TransparencySuffix = "+"
+// transparencySuffix returns the configured suffix that (when appended to a valid result ID),
+// will cause Gophish to return a transparency response.
+func (ps *PhishingServer) transparencySuffix() string {
+	if ps.config.TransparencySuffix != "" {
+		return ps.config.TransparencySuffix
+	}
+	return "+" // Fallback default
+}
 
 // PhishingServerOption is a functional option that is used to configure the
 // the phishing server
@@ -191,7 +196,7 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 	d := ctx.Get(r, "details").(models.EventDetails)
 
 	// Check for a transparency request
-	if strings.HasSuffix(rid, TransparencySuffix) {
+	if strings.HasSuffix(rid, ps.transparencySuffix()) {
 		ps.TransparencyHandler(w, r)
 		return
 	}
@@ -235,7 +240,7 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 	d := ctx.Get(r, "details").(models.EventDetails)
 
 	// Check for a transparency request
-	if strings.HasSuffix(rid, TransparencySuffix) {
+	if strings.HasSuffix(rid, ps.transparencySuffix()) {
 		ps.TransparencyHandler(w, r)
 		return
 	}
@@ -297,7 +302,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	d := ctx.Get(r, "details").(models.EventDetails)
 
 	// Check for a transparency request
-	if strings.HasSuffix(rid, TransparencySuffix) {
+	if strings.HasSuffix(rid, ps.transparencySuffix()) {
 		ps.TransparencyHandler(w, r)
 		return
 	}
@@ -381,7 +386,7 @@ func (ps *PhishingServer) setupContext(r *http.Request) (*http.Request, error) {
 		log.Error(err)
 		return r, err
 	}
-	rid := r.Form.Get(models.RecipientParameter)
+	rid := r.Form.Get(models.RecipientParameter())
 	if rid == "" {
 		return r, ErrInvalidRequest
 	}
@@ -393,14 +398,14 @@ func (ps *PhishingServer) setupContext(r *http.Request) (*http.Request, error) {
 		// We'll trim off the space
 		rid = strings.TrimRight(rid, " ")
 		// Then we'll add the transparency suffix
-		rid = fmt.Sprintf("%s%s", rid, TransparencySuffix)
+		rid = fmt.Sprintf("%s%s", rid, ps.transparencySuffix())
 	}
 	// Finally, if this is a transparency request, we'll need to verify that
 	// a valid rid has been provided, so we'll look up the result with a
 	// trimmed parameter.
-	id := strings.TrimSuffix(rid, TransparencySuffix)
+	id := strings.TrimSuffix(rid, ps.transparencySuffix())
 	// Check to see if this is a preview or a real result
-	if strings.HasPrefix(id, models.PreviewPrefix) {
+	if strings.HasPrefix(id, models.PreviewPrefix()) {
 		rs, err := models.GetEmailRequestByResultId(id)
 		if err != nil {
 			return r, err

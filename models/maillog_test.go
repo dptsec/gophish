@@ -332,7 +332,7 @@ func (s *ModelsSuite) TestURLTemplateRendering(ch *check.C) {
 
 	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
 	result := campaign.Results[0]
-	expectedURL := fmt.Sprintf("http://127.0.0.1/%s/?%s=%s", result.Email, RecipientParameter, result.RId)
+	expectedURL := fmt.Sprintf("http://127.0.0.1/%s/?%s=%s", result.Email, RecipientParameter(), result.RId)
 
 	got := s.emailFromFirstMailLog(campaign, ch)
 	ch.Assert(got.Subject, check.Equals, expectedURL)

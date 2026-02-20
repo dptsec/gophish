@@ -54,7 +54,7 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 
 	phishURL, _ := url.Parse(templateURL)
 	q := phishURL.Query()
-	q.Set(RecipientParameter, rid)
+	q.Set(RecipientParameter(), rid)
 	phishURL.RawQuery = q.Encode()
 
 	trackingURL, _ := url.Parse(templateURL)

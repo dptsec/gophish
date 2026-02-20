@@ -126,8 +126,13 @@ var ErrSMTPNotFound = errors.New("Sending profile not found")
 // launch date
 var ErrInvalidSendByDate = errors.New("The launch date must be before the \"send emails by\" date")
 
-// RecipientParameter is the URL parameter that points to the result ID for a recipient.
-const RecipientParameter = "rid"
+// RecipientParameter returns the configured URL parameter that points to the result ID for a recipient.
+func RecipientParameter() string {
+	if conf != nil && conf.PhishConf.RecipientParameter != "" {
+		return conf.PhishConf.RecipientParameter
+	}
+	return "id" // Fallback default
+}
 
 // Validate checks to make sure there are no invalid fields in a submitted campaign
 func (c *Campaign) Validate() error {

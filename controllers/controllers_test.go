@@ -28,6 +28,13 @@ func setupTest(t *testing.T) *testContext {
 		DBName:         "sqlite3",
 		DBPath:         ":memory:",
 		MigrationsPath: "../db/db_sqlite3/migrations/",
+		PhishConf: config.PhishServer{
+			ServerName:          config.DefaultServerName,
+			XMailer:             config.DefaultXMailer,
+			RecipientParameter:  config.DefaultRecipientParameter,
+			PreviewPrefix:       config.DefaultPreviewPrefix,
+			TransparencySuffix:  config.DefaultTransparencySuffix,
+		},
 	}
 	abs, _ := filepath.Abs("../db/db_sqlite3/migrations/")
 	fmt.Printf("in controllers_test.go: %s\n", abs)

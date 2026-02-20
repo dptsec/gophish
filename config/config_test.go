@@ -69,6 +69,9 @@ func TestLoadConfig(t *testing.T) {
 	// Set evasion defaults
 	expectedConfig.PhishConf.ServerName = DefaultServerName
 	expectedConfig.PhishConf.XMailer = DefaultXMailer
+	expectedConfig.PhishConf.RecipientParameter = DefaultRecipientParameter
+	expectedConfig.PhishConf.PreviewPrefix = DefaultPreviewPrefix
+	expectedConfig.PhishConf.TransparencySuffix = DefaultTransparencySuffix
 	if !reflect.DeepEqual(expectedConfig, conf) {
 		t.Fatalf("invalid config received. expected %#v got %#v", expectedConfig, conf)
 	}

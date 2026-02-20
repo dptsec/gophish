@@ -30,6 +30,9 @@ type PhishServer struct {
 	XMailer              string `json:"x_mailer,omitempty"`
 	EnableContactHeader  bool   `json:"enable_contact_header,omitempty"`
 	EnableServerHeader   bool   `json:"enable_server_header,omitempty"`
+	RecipientParameter   string `json:"recipient_parameter,omitempty"`
+	PreviewPrefix        string `json:"preview_prefix,omitempty"`
+	TransparencySuffix   string `json:"transparency_suffix,omitempty"`
 }
 
 // BlacklistEntry represents a single IP blacklist entry
@@ -62,6 +65,15 @@ const DefaultServerName = "nginx"
 // DefaultXMailer is the default X-Mailer header value
 const DefaultXMailer = "Mozilla/5.0"
 
+// DefaultRecipientParameter is the default URL parameter for recipient tracking
+const DefaultRecipientParameter = "id"
+
+// DefaultPreviewPrefix is the default prefix for preview/test email RIDs
+const DefaultPreviewPrefix = "preview-"
+
+// DefaultTransparencySuffix is the default suffix for transparency requests
+const DefaultTransparencySuffix = "+"
+
 // LoadConfig loads the configuration from the specified filepath
 func LoadConfig(filepath string) (*Config, error) {
 	// Get the config file
@@ -83,6 +95,15 @@ func LoadConfig(filepath string) (*Config, error) {
 	}
 	if config.PhishConf.XMailer == "" {
 		config.PhishConf.XMailer = DefaultXMailer
+	}
+	if config.PhishConf.RecipientParameter == "" {
+		config.PhishConf.RecipientParameter = DefaultRecipientParameter
+	}
+	if config.PhishConf.PreviewPrefix == "" {
+		config.PhishConf.PreviewPrefix = DefaultPreviewPrefix
+	}
+	if config.PhishConf.TransparencySuffix == "" {
+		config.PhishConf.TransparencySuffix = DefaultTransparencySuffix
 	}
 	// Choosing the migrations directory based on the database used.
 	config.MigrationsPath = config.MigrationsPath + config.DBName
