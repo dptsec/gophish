@@ -111,14 +111,14 @@
 
 - name: get latest release info
   uri:
-    url: "https://api.github.com/repos/gophish/gophish/releases/latest"
+    url: "https://api.github.com/repos/{{ gophish_repo_owner }}/{{ gophish_repo_name }}/releases/latest"
     return_content: true
   register: latest_json_reponse
 
 - name: Download latest Gophish .zip file.
   get_url:
     validate_certs: True
-    url: "https://github.com/gophish/gophish/releases/download/{{ latest_json_reponse.json.tag_name }}/gophish-{{ latest_json_reponse.json.tag_name }}-linux-64bit.zip"
+    url: "https://github.com/{{ gophish_repo_owner }}/{{ gophish_repo_name }}/releases/download/{{ latest_json_reponse.json.tag_name }}/gophish-{{ latest_json_reponse.json.tag_name }}-linux-64bit.zip"
     dest: "/home/{{ gophish_user }}/gophish.zip"
     mode: 0755
     owner: "{{ gophish_user }}"

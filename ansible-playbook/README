@@ -4,9 +4,9 @@ Installs Postfix (to listen on localhost only) and the latest Linux gophish bina
 
 1) Edit hosts file with the Gophish server IP.
 
-2) Edit vars/main.yml with any changes:
+2) Edit vars/main.yml with any changes (for example, set `gophish_repo_owner` if you publish releases under a different GitHub org):
 
-3) Modify files/config.json with any changes.
+3) Modify files/config.json with any changes (defaults now match the current Gophish config structure).
 
 4) Execute
 
