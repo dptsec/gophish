@@ -86,14 +86,21 @@ func generateTrackingPixel() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// serveTrackingPixel serves the randomized tracking pixel or falls back to static file
+// serveTrackingPixel serves the randomized tracking pixel or generates one on the fly
 func (ps *PhishingServer) serveTrackingPixel(w http.ResponseWriter) {
 	if ps.trackingPixel != nil {
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(ps.trackingPixel)
 	} else {
-		// Fallback to static file if pixel generation failed
-		http.ServeFile(w, &http.Request{}, "static/images/pixel.png")
+		// Fallback: generate a transparent pixel on the fly if startup generation failed
+		pixel, err := generateTrackingPixel()
+		if err != nil {
+			log.Error("Failed to generate tracking pixel: ", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pixel)
 	}
 }
 
@@ -141,8 +148,8 @@ func NewPhishingServer(config gophishConfig.PhishServer, options ...PhishingServ
 	trackingPixel, err := generateTrackingPixel()
 	if err != nil {
 		log.Errorf("Error generating tracking pixel: %v", err)
-		log.Warn("Using default tracking pixel")
-		trackingPixel = nil // Will fall back to static file
+		log.Warn("Tracking pixel will be generated on-demand")
+		trackingPixel = nil // Will generate on the fly for each request
 	}
 
 	ps := &PhishingServer{

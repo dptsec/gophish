@@ -15,7 +15,10 @@
 		"server_name": "nginx",
 		"x_mailer": "Mozilla/5.0",
 		"enable_contact_header": false,
-		"enable_server_header": false
+		"enable_server_header": false,
+		"recipient_parameter": "id",
+		"preview_prefix": "preview-",
+		"transparency_suffix": "+"
 	},
 	"db_name": "sqlite3",
 	"db_path": "gophish.db",
