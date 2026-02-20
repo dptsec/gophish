@@ -3,20 +3,64 @@
 Gophish
 =======
 
-![Build Status](https://github.com/gophish/gophish/workflows/CI/badge.svg) [![GoDoc](https://godoc.org/github.com/gophish/gophish?status.svg)](https://godoc.org/github.com/gophish/gophish)
+![Build Status](https://github.com/dptsec/gophish/workflows/CI/badge.svg) [![GoDoc](https://godoc.org/github.com/dptsec/gophish?status.svg)](https://godoc.org/github.com/dptsec/gophish)
 
 Gophish: Open-Source Phishing Toolkit
 
+> **Note:** This is an enhanced fork of the original [Gophish project](https://github.com/gophish/gophish) with additional security and evasion features for professional penetration testing engagements.
+
 [Gophish](https://getgophish.com) is an open-source phishing toolkit designed for businesses and penetration testers. It provides the ability to quickly and easily setup and execute phishing engagements and security awareness training.
+
+### Enhanced Features
+
+This fork includes the following additional capabilities:
+
+#### IP Blacklist Filtering
+- **Flexible IP Filtering**: Support for single IPs, IP ranges (hyphenated), comma-separated lists, and CIDR blocks
+- **Configurable Actions**: Per-entry actions including "ignore" (log and continue), "notfound" (404 response), or "redirect" (302 redirect)
+- **Configuration-based**: Manage blacklists via `config.json` without database changes
+- **Use Cases**: Filter internal testing IPs, block security scanners, or redirect unwanted traffic
+
+Example configuration:
+```json
+{
+  "phish_server": {
+    "ip_blacklist": [
+      {"ip_range": "192.168.1.0/24", "action": "notfound"},
+      {"ip_range": "10.0.0.1-10.0.0.50", "action": "ignore"},
+      {"ip_range": "1.1.1.1,2.2.2.2", "action": "redirect", "redirect_url": "https://example.com"}
+    ]
+  }
+}
+```
+
+#### Detection Evasion
+- **Header Sanitization**: Configurable removal or customization of identifying HTTP headers (X-Mailer, X-Gophish-Contact, X-Server)
+- **URL Parameter Obfuscation**: Customizable recipient ID parameter (default changed from "rid" to "id")
+- **Tracking Pixel Randomization**: Dynamically generated tracking pixels with random RGB values to prevent static fingerprinting
+- **Server Identity Masking**: Configurable server name (defaults to "nginx" instead of "gophish")
+
+Example configuration:
+```json
+{
+  "phish_server": {
+    "server_name": "nginx",
+    "x_mailer": "Mozilla/5.0",
+    "recipient_parameter": "id",
+    "enable_contact_header": false,
+    "enable_server_header": false
+  }
+}
+```
 
 ### Install
 
-Installation of Gophish is dead-simple - just download and extract the zip containing the [release for your system](https://github.com/gophish/gophish/releases/), and run the binary. Gophish has binary releases for Windows, Mac, and Linux platforms.
+Installation of Gophish is dead-simple - just download and extract the zip containing the [release for your system](https://github.com/dptsec/gophish/releases/), and run the binary. Gophish has binary releases for Windows, Mac, and Linux platforms.
 
 ### Building From Source
 **If you are building from source, please note that Gophish requires Go v1.10 or above!**
 
-To build Gophish from source, simply run ```git clone https://github.com/gophish/gophish.git``` and ```cd``` into the project source directory. Then, run ```go build```. After this, you should have a binary called ```gophish``` in the current directory.
+To build Gophish from source, simply run ```git clone https://github.com/dptsec/gophish.git``` and ```cd``` into the project source directory. Then, run ```go build```. After this, you should have a binary called ```gophish``` in the current directory.
 
 ### Docker
 You can also use Gophish via the official Docker container [here](https://hub.docker.com/r/gophish/gophish/).
@@ -36,7 +80,7 @@ Documentation can be found on our [site](http://getgophish.com/documentation). F
 
 ### Issues
 
-Find a bug? Want more features? Find something missing in the documentation? Let us know! Please don't hesitate to [file an issue](https://github.com/gophish/gophish/issues/new) and we'll get right on it.
+Find a bug? Want more features? Find something missing in the documentation? Let us know! Please don't hesitate to [file an issue](https://github.com/dptsec/gophish/issues/new) and we'll get right on it.
 
 ### License
 ```
