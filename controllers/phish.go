@@ -1,10 +1,15 @@
 package controllers
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"net"
 	"net/http"
 	"strings"
@@ -57,6 +62,41 @@ type TransparencyResponse struct {
 	SendDate       time.Time `json:"send_date"`
 }
 
+// generateTrackingPixel creates a random 1x1 PNG image to prevent MD5 hash fingerprinting.
+// The pixel has a random color to ensure each server instance has a unique tracking pixel.
+func generateTrackingPixel() ([]byte, error) {
+	// Generate random RGB values
+	randomBytes := make([]byte, 3)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a 1x1 image with the random color
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: randomBytes[0], G: randomBytes[1], B: randomBytes[2], A: 255})
+
+	// Encode to PNG
+	buf := new(bytes.Buffer)
+	err = png.Encode(buf, img)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// serveTrackingPixel serves the randomized tracking pixel or falls back to static file
+func (ps *PhishingServer) serveTrackingPixel(w http.ResponseWriter) {
+	if ps.trackingPixel != nil {
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(ps.trackingPixel)
+	} else {
+		// Fallback to static file if pixel generation failed
+		http.ServeFile(w, &http.Request{}, "static/images/pixel.png")
+	}
+}
+
 // transparencySuffix returns the configured suffix that (when appended to a valid result ID),
 // will cause Gophish to return a transparency response.
 func (ps *PhishingServer) transparencySuffix() string {
@@ -77,6 +117,7 @@ type PhishingServer struct {
 	config         gophishConfig.PhishServer
 	contactAddress string
 	ipFilter       *ipfilter.IPFilter
+	trackingPixel  []byte
 }
 
 // NewPhishingServer returns a new instance of the phishing server with
@@ -96,10 +137,19 @@ func NewPhishingServer(config gophishConfig.PhishServer, options ...PhishingServ
 		ipFilter, _ = ipfilter.NewIPFilter([]gophishConfig.BlacklistEntry{}) // Empty filter
 	}
 
+	// Generate random tracking pixel
+	trackingPixel, err := generateTrackingPixel()
+	if err != nil {
+		log.Errorf("Error generating tracking pixel: %v", err)
+		log.Warn("Using default tracking pixel")
+		trackingPixel = nil // Will fall back to static file
+	}
+
 	ps := &PhishingServer{
-		server:   defaultServer,
-		config:   config,
-		ipFilter: ipFilter,
+		server:        defaultServer,
+		config:        config,
+		ipFilter:      ipFilter,
+		trackingPixel: trackingPixel,
 	}
 	for _, opt := range options {
 		opt(ps)
@@ -188,7 +238,7 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Check for a preview
 	if _, ok := ctx.Get(r, "result").(models.EmailRequest); ok {
-		http.ServeFile(w, r, "static/images/pixel.png")
+		ps.serveTrackingPixel(w)
 		return
 	}
 	rs := ctx.Get(r, "result").(models.Result)
@@ -205,7 +255,7 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 	}
-	http.ServeFile(w, r, "static/images/pixel.png")
+	ps.serveTrackingPixel(w)
 }
 
 // ReportHandler tracks emails as they are reported, updating the status for the given Result
