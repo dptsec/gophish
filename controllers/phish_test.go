@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gophish/gophish/config"
 	"github.com/gophish/gophish/models"
 )
 
@@ -145,7 +144,7 @@ func transparencyRequest(t *testing.T, ctx *testContext, r models.Result, rid, p
 	expectedResponse := &TransparencyResponse{
 		ContactAddress: ctx.config.ContactAddress,
 		SendDate:       r.SendDate,
-		Server:         config.ServerName,
+		Server:         ctx.config.PhishConf.ServerName,
 	}
 	if !reflect.DeepEqual(tr, expectedResponse) {
 		t.Fatalf("unexpected transparency response received. expected %v got %v", expectedResponse, tr)

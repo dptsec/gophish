@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gophish/gophish/config"
-
 	"github.com/gophish/gomail"
 	"github.com/jordan-wright/email"
 	"gopkg.in/check.v1"
@@ -265,8 +263,9 @@ func (s *ModelsSuite) TestMailLogGenerate(ch *check.C) {
 
 func (s *ModelsSuite) TestMailLogGenerateTransparencyHeaders(ch *check.C) {
 	s.config.ContactAddress = "test@test.com"
+	s.config.PhishConf.EnableContactHeader = true
 	expectedHeaders := map[string]string{
-		"X-Mailer":          config.ServerName,
+		"X-Mailer":          s.config.PhishConf.XMailer,
 		"X-Gophish-Contact": s.config.ContactAddress,
 	}
 	campaign := s.createCampaign(ch)

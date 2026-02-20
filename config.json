@@ -11,7 +11,11 @@
 		"use_tls": false,
 		"cert_path": "example.crt",
 		"key_path": "example.key",
-		"ip_blacklist": []
+		"ip_blacklist": [],
+		"server_name": "nginx",
+		"x_mailer": "Mozilla/5.0",
+		"enable_contact_header": false,
+		"enable_server_header": false
 	},
 	"db_name": "sqlite3",
 	"db_path": "gophish.db",

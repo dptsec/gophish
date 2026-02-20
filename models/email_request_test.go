@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/gophish/gomail"
-	"github.com/gophish/gophish/config"
 	"github.com/jordan-wright/email"
 	check "gopkg.in/check.v1"
 )
@@ -77,8 +76,9 @@ func (s *ModelsSuite) TestEmailRequestGenerate(ch *check.C) {
 	}
 
 	s.config.ContactAddress = "test@test.com"
+	s.config.PhishConf.EnableContactHeader = true
 	expectedHeaders := map[string]string{
-		"X-Mailer":          config.ServerName,
+		"X-Mailer":          s.config.PhishConf.XMailer,
 		"X-Gophish-Contact": s.config.ContactAddress,
 	}
 

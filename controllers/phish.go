@@ -269,7 +269,10 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("X-Server", gophishConfig.ServerName) // Useful for checking if this is a GoPhish server (e.g. for campaign reporting plugins)
+	// Only set X-Server header if explicitly enabled in config
+	if ps.config.EnableServerHeader {
+		w.Header().Set("X-Server", ps.config.ServerName)
+	}
 	var ptx models.PhishingTemplateContext
 	// Check for a preview
 	if preview, ok := ctx.Get(r, "result").(models.EmailRequest); ok {
@@ -363,7 +366,7 @@ func (ps *PhishingServer) RobotsHandler(w http.ResponseWriter, r *http.Request) 
 func (ps *PhishingServer) TransparencyHandler(w http.ResponseWriter, r *http.Request) {
 	rs := ctx.Get(r, "result").(models.Result)
 	tr := &TransparencyResponse{
-		Server:         gophishConfig.ServerName,
+		Server:         ps.config.ServerName,
 		SendDate:       rs.SendDate,
 		ContactAddress: ps.contactAddress,
 	}
